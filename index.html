@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f97316">
+<title>Fox Inventory — Sistema de Inventario</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<div id="mobileOverlay" class="mobile-overlay" onclick="toggleSidebar(false)"></div>
+
+<div class="min-h-screen flex">
+  <aside id="sidebar" class="sidebar bg-gray-950 text-white flex flex-col shrink-0">
+    <div class="p-5 border-b border-gray-800">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-white flex items-center justify-center overflow-hidden">
+          <img src="imagenes/logo-zorro.png" alt="Logo Fox Inventory" class="w-full h-full object-contain" onerror="this.style.display='none';this.parentElement.textContent='🦊'">
+        </div>
+        <div>
+          <h1 class="font-extrabold text-lg">FOX INVENTORY</h1>
+          <p class="text-xs text-gray-400">Sistema de inventario</p>
+        </div>
+      </div>
+    </div>
+    <nav class="p-4 space-y-1 flex-1">
+      <button class="nav-item active" data-section="dashboard" onclick="showSection('dashboard')">📊 <span>Dashboard</span></button>
+      <button class="nav-item" data-section="productos" onclick="showSection('productos')">📦 <span>Productos</span></button>
+      <button class="nav-item" data-section="scanner" onclick="showSection('scanner')">📷 <span>Escáner</span></button>
+      <button class="nav-item" data-section="movimientos" onclick="showSection('movimientos')">🔄 <span>Entradas / Salidas</span></button>
+      <button class="nav-item" data-section="historial" onclick="showSection('historial')">📜 <span>Historial</span></button>
+      <button class="nav-item" data-section="categorias" onclick="showSection('categorias')">🏷️ <span>Categorías</span></button>
+      <button class="nav-item" data-section="reportes" onclick="showSection('reportes')">📈 <span>Reportes</span></button>
+    </nav>
+    <div class="p-4 border-t border-gray-800">
+      <button class="nav-item" onclick="resetDemoData()">↺ <span>Restaurar demo</span></button>
+    </div>
+  </aside>
+
+  <main class="main flex-1">
+    <header class="sticky top-0 z-40 border-b" style="background:var(--surface);border-color:var(--border)">
+      <div class="px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <button class="icon-btn lg:hidden" onclick="toggleSidebar(true)" aria-label="Abrir menú">☰</button>
+          <div>
+            <h2 id="pageTitle" class="text-xl font-extrabold">Dashboard</h2>
+            <p id="pageSubtitle" class="text-sm" style="color:var(--muted)">Resumen general del inventario</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="icon-btn" onclick="toggleDarkMode()" title="Cambiar tema">🌙</button>
+          <button class="btn btn-primary hidden sm:inline-flex" onclick="openProductModal()">＋ Producto</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="p-4 sm:p-6">
+      <!-- DASHBOARD -->
+      <section id="section-dashboard" class="section fade-in">
+        <div id="dashboardStats" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6"></div>
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div class="card p-5 xl:col-span-2">
+            <div class="flex items-center justify-between mb-5">
+              <div><h3 class="font-extrabold text-lg">Inventario por categoría</h3><p class="text-sm" style="color:var(--muted)">Cantidad de unidades</p></div>
+            </div>
+            <div id="categoryChart" class="space-y-4"></div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-5">
+              <div><h3 class="font-extrabold text-lg">Alertas</h3><p class="text-sm" style="color:var(--muted)">Productos que requieren atención</p></div>
+            </div>
+            <div id="alertsList" class="space-y-3"></div>
+          </div>
+        </div>
+        <div class="card p-5 mt-6">
+          <div class="flex items-center justify-between mb-4">
+            <div><h3 class="font-extrabold text-lg">Últimos movimientos</h3><p class="text-sm" style="color:var(--muted)">Actividad reciente</p></div>
+            <button class="btn btn-secondary text-sm" onclick="showSection('historial')">Ver historial →</button>
+          </div>
+          <div id="recentMovements"></div>
+        </div>
+      </section>
+
+      <!-- PRODUCTOS -->
+      <section id="section-productos" class="section hidden fade-in">
+        <div class="card p-5 mb-5">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div><h3 class="text-lg font-extrabold">Inventario</h3><p class="text-sm" style="color:var(--muted)">Gestiona todos tus productos.</p></div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <button class="btn btn-secondary" onclick="exportCSV()">⬇️ CSV</button>
+              <button class="btn btn-secondary" onclick="exportJSON()">⬇️ JSON</button>
+              <label class="btn btn-secondary cursor-pointer">⬆️ Importar <input id="importFile" type="file" accept=".json,.csv" class="hidden" onchange="importInventory(event)"></label>
+              <button class="btn btn-primary" onclick="openProductModal()">＋ Agregar</button>
+            </div>
+          </div>
+        </div>
+        <div class="card p-5">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+            <input id="productSearch" placeholder="🔍 Buscar por nombre, código..." oninput="renderProducts()">
+            <select id="categoryFilter" onchange="renderProducts()"><option value="">Todas las categorías</option></select>
+            <select id="stockFilter" onchange="renderProducts()">
+              <option value="">Todos los estados</option><option value="available">Disponible</option><option value="low">Stock bajo</option><option value="out">Agotado</option>
+            </select>
+            <select id="sortProducts" onchange="renderProducts()">
+              <option value="name">Ordenar: nombre</option><option value="stockAsc">Stock ↑</option><option value="stockDesc">Stock ↓</option><option value="priceAsc">Precio ↑</option><option value="priceDesc">Precio ↓</option>
+            </select>
+          </div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>ID</th><th>Código</th><th>Producto</th><th>Categoría</th><th>Stock</th><th>Precio</th><th>Estado</th><th>Acciones</th>
+          </tr></thead><tbody id="productsTable"></tbody></table></div>
+          <div id="productsEmpty" class="empty hidden">No se encontraron productos.</div>
+        </div>
+      </section>
+
+      <!-- SCANNER -->
+      <section id="section-scanner" class="section hidden fade-in">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div class="card p-5">
+            <div class="mb-5"><h3 class="text-lg font-extrabold">Escáner de códigos</h3><p class="text-sm" style="color:var(--muted)">Usa la cámara para buscar productos por código.</p></div>
+            <div class="relative rounded-2xl overflow-hidden bg-black min-h-64 flex items-center justify-center">
+              <div id="reader" class="w-full"></div>
+              <div id="scannerPlaceholder" class="text-center text-gray-400 p-8">
+                <div class="text-5xl mb-3">📷</div><p>Presiona iniciar para activar la cámara.</p>
+              </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button id="startScannerBtn" class="btn btn-primary flex-1" onclick="startScanner()">📷 Iniciar escáner</button>
+              <button id="stopScannerBtn" class="btn btn-secondary hidden" onclick="stopScanner()">⏹ Detener</button>
+            </div>
+            <p class="text-xs mt-3" style="color:var(--muted)">La cámara requiere permisos y normalmente funciona en HTTPS o localhost.</p>
+          </div>
+          <div class="card p-5">
+            <h3 class="text-lg font-extrabold mb-1">Resultado</h3>
+            <p class="text-sm mb-5" style="color:var(--muted)">El producto encontrado aparecerá aquí.</p>
+            <div id="scanResult" class="empty">Aún no se ha escaneado ningún código.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MOVIMIENTOS -->
+      <section id="section-movimientos" class="section hidden fade-in">
+        <div class="card p-5">
+          <div class="mb-5"><h3 class="text-lg font-extrabold">Registrar movimiento</h3><p class="text-sm" style="color:var(--muted)">Registra entradas, salidas, ajustes y devoluciones.</p></div>
+          <form id="movementForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2"><label class="block text-sm font-bold mb-1">Producto</label><select id="movementProduct" required></select></div>
+            <div><label class="block text-sm font-bold mb-1">Tipo</label><select id="movementType" required><option value="entrada">🟢 Entrada</option><option value="salida">🔴 Salida</option><option value="ajuste">🔵 Ajuste de stock</option><option value="devolucion">🟡 Devolución</option></select></div>
+            <div><label class="block text-sm font-bold mb-1">Cantidad</label><input id="movementQuantity" type="number" min="1" step="1" required></div>
+            <div class="md:col-span-2"><label class="block text-sm font-bold mb-1">Motivo / observación</label><textarea id="movementNote" rows="3" placeholder="Ej. Venta al cliente, compra a proveedor..."></textarea></div>
+            <div class="md:col-span-2 flex justify-end"><button class="btn btn-primary" type="submit">💾 Registrar movimiento</button></div>
+          </form>
+        </div>
+        <div class="card p-5 mt-6">
+          <h3 class="font-extrabold mb-4">Stock actual</h3>
+          <div id="movementStockTable"></div>
+        </div>
+      </section>
+
+      <!-- HISTORIAL -->
+      <section id="section-historial" class="section hidden fade-in">
+        <div class="card p-5">
+          <div class="flex flex-col md:flex-row justify-between gap-3 mb-5">
+            <div><h3 class="text-lg font-extrabold">Historial de movimientos</h3><p class="text-sm" style="color:var(--muted)">Registro de entradas y salidas.</p></div>
+            <input id="historySearch" class="md:max-w-xs" placeholder="🔍 Buscar..." oninput="renderHistory()">
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Stock resultante</th><th>Observación</th></tr></thead><tbody id="historyTable"></tbody></table></div>
+          <div id="historyEmpty" class="empty hidden">No hay movimientos registrados.</div>
+        </div>
+      </section>
+
+      <!-- CATEGORIAS -->
+      <section id="section-categorias" class="section hidden fade-in">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="card p-5">
+            <h3 class="text-lg font-extrabold mb-1">Nueva categoría</h3><p class="text-sm mb-5" style="color:var(--muted)">Crea categorías para organizar productos.</p>
+            <form id="categoryForm" class="space-y-3"><input id="categoryName" placeholder="Ej. Electrónica" required><button class="btn btn-primary w-full">＋ Crear categoría</button></form>
+          </div>
+          <div class="card p-5 lg:col-span-2"><h3 class="text-lg font-extrabold mb-4">Categorías</h3><div id="categoriesList" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div></div>
+        </div>
+      </section>
+
+      <!-- REPORTES -->
+      <section id="section-reportes" class="section hidden fade-in">
+        <div id="reportStats" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6"></div>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div class="card p-5"><h3 class="text-lg font-extrabold mb-4">Valor por categoría</h3><div id="valueChart"></div></div>
+          <div class="card p-5"><h3 class="text-lg font-extrabold mb-4">Productos destacados</h3><div id="topProducts"></div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div id="productModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+  <div class="card w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6">
+    <div class="flex justify-between items-center mb-5"><div><h3 id="productModalTitle" class="text-xl font-extrabold">Agregar producto</h3><p class="text-sm" style="color:var(--muted)">Completa la información.</p></div><button class="icon-btn" onclick="closeModal('productModal')">✕</button></div>
+    <form id="productForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <input type="hidden" id="productId">
+      <div><label class="block text-sm font-bold mb-1">Código de barras</label><input id="productBarcode" placeholder="Ej. 7701234567890"></div>
+      <div><label class="block text-sm font-bold mb-1">Nombre *</label><input id="productName" required placeholder="Nombre del producto"></div>
+      <div><label class="block text-sm font-bold mb-1">Categoría *</label><select id="productCategory" required></select></div>
+      <div><label class="block text-sm font-bold mb-1">Stock *</label><input id="productStock" type="number" min="0" step="1" required></div>
+      <div><label class="block text-sm font-bold mb-1">Precio unitario *</label><input id="productPrice" type="number" min="0" step="0.01" required></div>
+      <div><label class="block text-sm font-bold mb-1">Stock mínimo *</label><input id="productMinStock" type="number" min="0" step="1" value="5" required></div>
+      <div class="md:col-span-2"><label class="block text-sm font-bold mb-1">Descripción</label><textarea id="productDescription" rows="3" placeholder="Descripción opcional"></textarea></div>
+      <div class="md:col-span-2 flex justify-end gap-2"><button type="button" class="btn btn-secondary" onclick="closeModal('productModal')">Cancelar</button><button class="btn btn-primary">💾 Guardar producto</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="movementModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+  <div class="card w-full max-w-lg p-6"><div class="flex justify-between items-center mb-5"><h3 class="text-xl font-extrabold">Movimiento rápido</h3><button class="icon-btn" onclick="closeModal('movementModal')">✕</button></div><div id="quickMovementInfo"></div></div>
+</div>
+
+<div id="toastContainer" class="fixed right-4 top-4 z-[100] space-y-2"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
